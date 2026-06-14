@@ -1,0 +1,19 @@
+{
+  "main": {
+    "seedCardPrints": true,
+    "samplePrints": [
+      {
+        "set_code": "SV8",
+        "set_name": "Shrouded Fable",
+        "card_number": "075/64",
+        "name": "Salandit ex",
+        "supertype": "POKEMON",
+        "subtype": "EX",
+        "rarity_tier": "SECRET_RARE",
+        "visual_variant": "ALTERNATE_ART",
+        "unique_hash": "SV8_075_EX_SECRET_RARE_ALTERNATE_ART",
+        "release_date": "2026-05-09"
+      }
+    ]
+  }
+}
