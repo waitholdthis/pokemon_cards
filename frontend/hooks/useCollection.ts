@@ -1,8 +1,13 @@
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { useState } from 'react';
 
 export type CardCondition = 'MINT' | 'NEAR_MINT' | 'LIGHTLY_PLAYED' | 'PLAYED' | 'HEAVILY_PLAYED' | 'DAMAGED';
 export type RarityTier = 'COMMON' | 'UNCOMMON' | 'RARE' | 'ILLUSTRATION_RARE' | 'ULTRA_RARE' | 'SECRET_RARE';
+
+export interface CardSnapshot {
+  market_price_cents: number;
+  mid_price_cents: number;
+  fetched_at: string;
+}
 
 export interface CardPrint {
   card_print_id: string;
@@ -11,47 +16,34 @@ export interface CardPrint {
   set_name: string;
   card_number: string;
   supertype: 'POKEMON' | 'TRAINER' | 'ENERGY';
-  subtype?: string;
   rarity_tier: RarityTier;
   visual_variant: string;
   image_url?: string;
-}
-
-export interface UserCard {
-  user_card_id: string;
-  card_print: CardPrint;
-  condition: CardCondition;
-  quantity: number;
-  purchase_price_cents: number;
+  condition?: CardCondition;
+  quantity?: number;
+  purchase_price_cents?: number;
+  snapshot?: CardSnapshot;
 }
 
 export interface CollectionState {
-  cards: UserCard[];
-  addCard: (card: Omit<UserCard, 'user_card_id'>) => void;
-  removeCard: (user_card_id: string) => void;
+  cards: CardPrint[];
+  addCard: (card: Omit<CardPrint, 'card_print_id'> & { card_print_id?: string }) => void;
+  removeCard: (card_print_id: string) => void;
   totalValueCents: () => number;
 }
 
-export const useCollection = create<CollectionState>()(
-  persist(
-    (set, get) => ({
-      cards: [],
-      addCard: (entry) =>
-        set((state) => ({
-          cards: [...state.cards, { ...entry, user_card_id: crypto.randomUUID() }],
-        })),
-      removeCard: (id) =>
-        set((state) => ({
-          cards: state.cards.filter((c) => c.user_card_id !== id),
-        })),
-      totalValueCents: () =>
-        get().cards.reduce(
-          (acc, c) => acc + (c.purchase_price_cents || 0) * c.quantity,
-          0
-        ),
-    }),
-    {
-      name: 'collection',
-    }
-  )
-);
+export const useCollection = (): CollectionState => {
+  const [cards, setCards] = useState<CardPrint[]>([]);
+
+  const addCard = (entry: Omit<CardPrint, 'card_print_id'> & { card_print_id?: string }) => {
+    setCards((prev) => [...prev, { ...entry, card_print_id: entry.card_print_id ?? crypto.randomUUID() } as CardPrint]);
+  };
+
+  const removeCard = (card_print_id: string) => {
+    setCards((prev) => prev.filter((c) => c.card_print_id !== card_print_id));
+  };
+
+  const totalValueCents = () => cards.reduce((acc, c) => acc + (c.snapshot?.market_price_cents ?? 0) * (c.quantity ?? 1), 0);
+
+  return { cards, addCard, removeCard, totalValueCents };
+};
