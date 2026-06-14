@@ -3,9 +3,10 @@
     "name": "PokemonCards",
     "slug": "pokemon-cards",
     "version": "0.1.0",
-    "platforms": ["ios", "android"],
+    "platforms": ["ios", "android", "web"],
     "orientation": "portrait",
     "ios": { "bundleIdentifier": "com.example.pokemoncards" },
-    "android": { "package": "com.example.pokemoncards" }
+    "android": { "package": "com.example.pokemoncards" },
+    "web": {}
   }
 }
