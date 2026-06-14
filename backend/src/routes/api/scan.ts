@@ -2,7 +2,7 @@ import { Router } from 'express';
 
 const router = Router();
 
-router.post('/match', (req, res) => {
+router.post('/match', async (req, res) => {
   res.json({ ok: true, accepted: true });
 });
 
