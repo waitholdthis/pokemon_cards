@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { addUserCard, getUserCards, createCardPrint, getSnapshotHistory } from '../services/cards.js';
+import { addUserCard, getUserCards, createCardPrint, getSnapshotHistory } from '../../services/cards.ts';
 
 const router = Router();
 
