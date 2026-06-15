@@ -47,3 +47,15 @@ export const useCollection = (): CollectionState => {
 
   return { cards, addCard, removeCard, totalValueCents };
 };
+
+export async function getFairMarketPrice(cardPrintId: string) {
+  const base =
+    (typeof process !== 'undefined' && (process as any).env?.EXPO_PUBLIC_BACKEND_URL) ||
+    (typeof window !== 'undefined' && (window as any).EXPO_PUBLIC_BACKEND_URL) ||
+    'http://localhost:4000';
+
+  const res = await fetch(`${base}/api/cards/${encodeURIComponent(cardPrintId)}/fair-price`);
+  if (!res.ok) throw new Error('Failed to load fair price');
+  return res.json();
+}
+
