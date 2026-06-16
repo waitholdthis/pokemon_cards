@@ -8,6 +8,7 @@ export interface SourceBreakdown {
   mid?: number;
   high?: number;
   count?: number;
+  sold_vs_listing?: 'sold' | 'listing' | 'mixed';
 }
 
 export interface FairPriceResult {
@@ -17,10 +18,11 @@ export interface FairPriceResult {
   trend_7d_cents: number;
   trend_30d_cents: number;
   breakdown: SourceBreakdown[];
+  condition_adjusted_cents: number;
 }
 
 export async function queryPokemonTCGPrice(cardPrintId: string): Promise<SourceBreakdown | null> {
-  const rows = await query<any>(`SELECT set_code, card_number FROM card_prints WHERE card_print_id = $1 LIMIT 1`, [cardPrintId]);
+  const rows = await query<any>(`SELECT set_code, card_number, supertype, rarity_tier FROM card_prints WHERE card_print_id = $1 LIMIT 1`, [cardPrintId]);
   const card = rows[0];
   if (!card) return null;
 
@@ -43,36 +45,7 @@ export async function queryPokemonTCGPrice(cardPrintId: string): Promise<SourceB
       low: market ? Math.round((market * 0.9) * 100) : undefined,
       mid: market ? Math.round(market * 100) : undefined,
       high: market ? Math.round((market * 1.1) * 100) : undefined,
-    };
-  } catch {
-    return null;
-  }
-}
-
-export async function queryTCGPlayerSold(cardPrintId: string): Promise<SourceBreakdown | null> {
-  const apiKey = process.env.TCGPLAYER_API_KEY;
-  if (!apiKey) return null;
-
-  const rows = await query<any>(`SELECT set_code, card_number FROM card_prints WHERE card_print_id = $1 LIMIT 1`, [cardPrintId]);
-  const card = rows[0];
-  if (!card) return null;
-
-  try {
-    const url = `https://example.tcgplayer.com/v1.38.0/catalog/product/${encodeURIComponent(card.set_code)}/${encodeURIComponent(card.card_number)}`;
-    const { data } = await axios.get(url, {
-      headers: { Authorization: `Bearer ${apiKey}` },
-      timeout: 4000,
-    });
-
-    const market = data?.marketPrice;
-    if (typeof market !== 'number') return null;
-
-    return {
-      source: 'tcgplayer',
-      market: Math.round(market * 100),
-      low: Math.round((data.lowPrice ?? market * 0.9) * 100),
-      mid: Math.round((data.midPrice ?? market) * 100),
-      high: Math.round((data.highPrice ?? market * 1.1) * 100),
+      sold_vs_listing: 'listing',
     };
   } catch {
     return null;
@@ -108,19 +81,29 @@ export async function queryRecentSnapshots(cardPrintId: string): Promise<{ cents
   return { cents7d, cents30d };
 }
 
-export async function getFairMarketPrice(cardPrintId: string): Promise<FairPriceResult> {
-  const [pokemon, tcg] = await Promise.all([queryPokemonTCGPrice(cardPrintId), queryTCGPlayerSold(cardPrintId)]);
+export async function getFairMarketPrice(cardPrintId: string, condition: string = 'NEAR_MINT'): Promise<FairPriceResult> {
+  const pokemon = await queryPokemonTCGPrice(cardPrintId);
 
   const breakdown: SourceBreakdown[] = [];
   if (pokemon) breakdown.push(pokemon);
-  if (tcg) breakdown.push(tcg);
 
   const marketValues = breakdown.map((b) => b.market).filter((v): v is number => typeof v === 'number');
-  const fair_price_cents = marketValues.length ? Math.round(marketValues.reduce((sum, v) => sum + v, 0) / marketValues.length) : 0;
+  let fair_price_cents = marketValues.length ? Math.round(marketValues.reduce((sum, v) => sum + v, 0) / marketValues.length) : 0;
 
-  const confidence = Math.min(1, breakdown.length * 0.35);
+  const confidence = Math.min(1, breakdown.length * 0.35 + 0.15);
 
   const trend = await queryRecentSnapshots(cardPrintId);
+
+  const conditionMultiplier: Record<string, number> = {
+    MINT: 1.25,
+    NEAR_MINT: 1.0,
+    LIGHTLY_PLAYED: 0.75,
+    PLAYED: 0.55,
+    HEAVILY_PLAYED: 0.35,
+    DAMAGED: 0.2,
+  };
+
+  const condition_adjusted_cents = Math.round(fair_price_cents * (conditionMultiplier[condition] ?? 1.0));
 
   return {
     fair_price_cents,
@@ -129,5 +112,6 @@ export async function getFairMarketPrice(cardPrintId: string): Promise<FairPrice
     trend_7d_cents: trend.cents7d,
     trend_30d_cents: trend.cents30d,
     breakdown,
+    condition_adjusted_cents,
   };
 }

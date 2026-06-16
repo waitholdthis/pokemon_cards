@@ -58,4 +58,3 @@ export async function getFairMarketPrice(cardPrintId: string) {
   if (!res.ok) throw new Error('Failed to load fair price');
   return res.json();
 }
-
